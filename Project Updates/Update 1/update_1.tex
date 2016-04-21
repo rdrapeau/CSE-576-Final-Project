@@ -85,6 +85,38 @@
 
 \begin{document}
 
-\textbf{1. }\\[-10pt]
+\section{This Week's Progress}
+\vspace{-3pt}
+We met with Garrett Genereux, climbing coordinator, who manages the \href{https://www.washington.edu/ima/uwild/crags-climbing-center/}{Crags Climbing Center} at UW and proposed our project idea and needs. Garrett was very open and agreed to give us off-hours access to the climbing center in order to conduct our research and project. We also proposed having an open ``CV/AR climbing night'' towards the end of the quarter where people could come in and try out our game/project. This will allow us to have uninterrupted development time when the gym is closed to gather images, videos, and test our program.\\[-5pt]
+
+We reserved a projector from the \href{http://www.cte.uw.edu/STFEquipment}{University of Washington Student Technology Fund (STF)} to borrow for the duration of the project. We also acquired a Logitech webcam to use as our image/video source for the project. The camera records 640x480 resolution, which if it turns out to be insufficient quality, we have a Mac laptop which has a built in webcam recording at 1280x720 resolution. We will experiment with both and see which will produce high quality results / data for us to use.
+\vspace{-15pt}
+\section{Outline / Milestones}
+\vspace{-3pt}
+We will start by building an image processing API to support our setup and provide the foundations for developing games.\\[-5pt]
+
+\textbf{Rock Wall Image Processing API}
+\begin{itemize}[noitemsep]
+    \item Obtain image samples of walls (simple camera photographs: maybe some with webcams / laptop cameras)
+    \item Compute location of handles accurately and reliably. Ideas:
+    \begin{itemize}[noitemsep]
+        \item Sum of gradient magnitudes
+        \item Distribution of gradient magnitudes
+        \item Grey (wall) subtraction
+        \item \href{http://docs.opencv.org/2.4/modules/objdetect/doc/objdetect.html}{Open CV Object Detection}
+    \end{itemize}
+    \item Detect Human (Histogram of Gradient human detector)
+    \item Pose Detection
+    \begin{itemize}[noitemsep]
+        \item Many possible avenues, but some implementations use neural network pose estimation and HoG descriptors regressing to some constraints
+        \item \href{http://groups.inf.ed.ac.uk/calvin/articulated_human_pose_estimation_code/}{Example Code}
+    \end{itemize}
+    \item Display images on the rock wall with little to no distortion
+    \begin{itemize}[noitemsep]
+        \item Compute incline of wall and transform image accordingly
+        \item Project a dot-grid on the wall and compute the relative depth (warping) via dot pixel size, apply inverse to image being projected. Or use a depth camera.
+    \end{itemize}
+    \item Higher level APIs like: getHandlePositions(), didHumanTouchHandle(), didTouchXY(), trackHandleProgress()
+\end{itemize}
 
 \end{document}
