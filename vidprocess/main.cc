@@ -128,7 +128,7 @@ int main(int argc, char** argv) {
 
 
     // Open video
-    bool video = inFilePath.find("mp4") != string::npos;
+    bool video = inFilePath.find("mp4") != string::npos || inFilePath.find("mov") !=string::npos;
 
     vector<Mat> frames;
     VideoCapture inputVideo(inFilePath);
