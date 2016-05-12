@@ -12,32 +12,37 @@ def in_bounds(img, row, col):
 	return row >= 0 and row < height and col >= 0 and col < width
 
 
-def check_neighbors(img, row, col):
+def check_neighbors(img, pix, visited):
 	component = []
 	for i in xrange(-1, 2):
 		for j in xrange(-1, 2):
-			if in_bounds(img, row + i, col + j) and img[row + i][col + j] > PIXEL_THRESHOLD:
-				img[row + i][col + j] = 0
-				component.append(tuple([row + i, col + j]))
-
+			t = (pix[0] + i, pix[1] + j)
+			if t in img and t not in visited:
+				component.append(t)
 	return component
 
 
-def connected_components(img):
+def connected_components(pixs):
 	components = []
-	for row in xrange(len(img)):
-		for col in xrange(len(img[0])):
-			if img[row][col] > PIXEL_THRESHOLD:
-				stack = [tuple([row, col])]
+	visited = {}
 
-				# Go deeper
-				component = []
-				while len(stack) != 0:
-					pixel = stack.pop()
-					component.append(pixel)
-					stack += check_neighbors(img, pixel[0], pixel[1])
+	for k in pixs.keys():
+		if k in visited:
+			continue
 
-				components.append(component)
+		stack = [k]
+		visited[k] = True
+
+		# Go deeper
+		component = []
+		while len(stack) != 0:
+			pixel = stack.pop()
+			component.append(pixel)
+			neighbors = check_neighbors(pixs, pixel, visited)
+			for neighbor in neighbors:
+				visited[neighbor] = True
+				stack.append(neighbor);
+		components.append(component)
 
 	return components
 
@@ -80,7 +85,7 @@ def cluster(components):
 			new_cluster_y += cluster[1] * cluster[2] / total_weight
 			new_cluster_weight += cluster[2]
 			clusters.remove(cluster)
-		
+
 		if new_cluster_weight > 20:
 			new_clusters.append((new_cluster_x, new_cluster_y, new_cluster_weight))
 
@@ -93,20 +98,3 @@ def draw_clusters(clusters, filename):
 		cv2.circle(base, (int(cluster[1]), int(cluster[0])), int(math.log(cluster[2]) * 5), [0, 255, 0], thickness=-1)
 
 	cv2.imwrite(filename, base)
-
-
-
-
-
-img = cv2.imread('out_bigger_window.jpg', cv2.IMREAD_GRAYSCALE)
-components = connected_components(img)
-# Filter
-components = [component for component in components if len(component) > 75]
-
-draw_components(components, "component_img.jpg")
-
-clusters = cluster(components)
-draw_clusters(clusters, "cluster_img.jpg")
-
-# cv2.waitKey(0)
-# cv2.destroyAllWindows()

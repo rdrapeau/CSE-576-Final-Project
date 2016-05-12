@@ -1,5 +1,6 @@
 #include <opencv2/opencv.hpp>
 #include <boost/thread.hpp>
+#include <stdio.h>
 
 using namespace cv;
 using namespace std;
@@ -68,7 +69,7 @@ static Mat colorVarianceImage(Mat in) {
 static void processFrameChunk(
         vector<Mat> *frames,
         int start, int end) {
-    cout << "Processing chunk from " << start << " to " << end << endl;
+    // cout << "Processing chunk from " << start << " to " << end << endl;
 
     for (int i = start; i <= end; i++) {
         Mat frame = (*frames)[i];
@@ -80,15 +81,8 @@ static void processFrameChunk(
         Mat thresholded;
         adaptiveThreshold(normalized, thresholded, 255, CV_ADAPTIVE_THRESH_GAUSSIAN_C, THRESH_BINARY, 51, -40);
 
-        Mat coloredThreshold;
-        cvtColor(thresholded, coloredThreshold, CV_GRAY2BGR);
-
-
-        Mat result;
-        addWeighted(coloredThreshold, 0.5, frame, 0.5, 0, result);
-
         // Set result
-        (*frames)[i] = result;
+        (*frames)[i] = thresholded;
     }
 }
 
@@ -100,7 +94,7 @@ static vector<Mat> getFrames(VideoCapture &video) {
         video >> frame;
         if (frame.empty()) break;
         result.push_back(frame);
-        cout << "Frame " << (currentFrame) << " loaded" << endl;
+        // cout << "Frame " << (currentFrame) << " loaded" << endl;
         currentFrame++;
     }
 
@@ -109,22 +103,39 @@ static vector<Mat> getFrames(VideoCapture &video) {
 
 static void usage(char* programName) {
     cout << "Usage: " << endl;
-    cout << programName << " infile outfile cores" << endl;
+    cout << programName << " infile cores" << endl;
     cout << "\tVideos, and images are supported." << endl;
     cout << "\tCores is the number of parallel threads activated for processing video frames. It must be >0" << endl;
-    cout << "\tUse \"-\" for outfile to display when finished processing instead of saving" << endl;
     exit(1);
+}
+
+static void outputFrame(Mat in) {
+    cout << '{' << endl;
+    unsigned char *input = (unsigned char*)(in.data);
+    for(int j = 0; j < in.rows; j++){
+        for(int i = 0; i < in.cols; i++){
+            unsigned char val = input[in.step * j + i ];
+            if (val > 100) {
+                cout << i << endl;
+                cout << j << endl;
+            }
+        }
+    }
+    cout << '}' << endl;
+
+    // namedWindow( "Display window", WINDOW_AUTOSIZE );
+    // imshow( "Display window", in );
+    // waitKey(0);
 }
 
 int main(int argc, char** argv) {
     // Process command line arguments
-    if (argc != 4) usage(argv[0]);
+    if (argc != 3) usage(argv[0]);
 
-    int coreCount = atoi(argv[3]);
+    int coreCount = atoi(argv[2]);
     if (coreCount <= 0) usage(argv[0]);
 
     string inFilePath(argv[1]);
-    string outFilePath(argv[2]);
 
 
     // Open video
@@ -139,30 +150,17 @@ int main(int argc, char** argv) {
 
         S = Size((int) inputVideo.get(CV_CAP_PROP_FRAME_WIDTH),
                       (int) inputVideo.get(CV_CAP_PROP_FRAME_HEIGHT));
-        cout << "Input frame resolution: Width=" << S.width << "  Height=" << S.height
-             << " of nr#: " << inputVideo.get(CV_CAP_PROP_FRAME_COUNT) << endl;
+        // cout << "Input frame resolution: Width=" << S.width << "  Height=" << S.height
+        //     << " of nr#: " << inputVideo.get(CV_CAP_PROP_FRAME_COUNT) << endl;
 
-        cout << "Loading video into memory..." << endl;
+        // cout << "Loading video into memory..." << endl;
         frames = getFrames(inputVideo);
     } else {
         frames.push_back(imread(inFilePath, CV_LOAD_IMAGE_COLOR));
     }
 
-    VideoWriter outputVideo;
-    // Create window if we are displaying the output, otherwise create an output video
-    if (outFilePath == "-") {
-        namedWindow("Test", 1);
-    } else {
-        if (video) {
-            // Output video
-            cout << inputVideo.get(CV_CAP_PROP_FPS) << endl;
-            int ex = static_cast<int>(inputVideo.get(CV_CAP_PROP_FOURCC));
-            outputVideo.open(outFilePath, ex, inputVideo.get(CV_CAP_PROP_FPS), S, true);
-        }
-    }
-
-    cout << "Loaded " << frames.size() << " frames" << endl;
-    cout << "Processing frames..." << endl;
+    // cout << "Loaded " << frames.size() << " frames" << endl;
+    // cout << "Processing frames..." << endl;
 
     if (video) {
         // Process each frame
@@ -192,24 +190,11 @@ int main(int argc, char** argv) {
         processFrameChunk(&frames, 0, 0);
     }
 
-    cout << "Outputing frames..." << endl;
+    // cout << "Outputing frames..." << endl;
 
-    // Replay the video if we're playing in a window
-    do {
-        for (int i = 0; i < frames.size(); i++) {
-            if (outFilePath == "-") {
-                imshow("Test", frames[i]);
-                waitKey(30);
-            } else {
-                if (video) {
-                    // stream to output file
-                    outputVideo << frames[i];
-                } else {
-                    imwrite(outFilePath, frames[i]);
-                }
-            }
-        }
-    } while(outFilePath == "-");
+    for (int i = 0; i < frames.size(); i++) {
+        outputFrame(frames[i]);
+    }
 
 
     return 0;
