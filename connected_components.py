@@ -48,13 +48,13 @@ def connected_components(pixs):
 
 
 def draw_components(components, filename):
-	base = cv2.imread('Media/img/ryan_landscape_1.jpg', cv2.IMREAD_COLOR)
+	base = cv2.imread(filename, cv2.IMREAD_COLOR)
 	for component in components:
 		mean_x = np.mean([pixel[0] for pixel in component])
 		mean_y = np.mean([pixel[1] for pixel in component])
 		weight = min(len(component) / 30, 75)
 		cv2.circle(base, (int(mean_y), int(mean_x)), weight, [255, 0, 0], thickness=-1)
-	cv2.imwrite(filename, base)
+	cv2.imwrite('foo.png', base)
 
 
 def is_overlap(c1, c2):
@@ -93,8 +93,8 @@ def cluster(components):
 
 
 def draw_clusters(clusters, filename):
-	base = cv2.imread('Media/img/ryan_landscape_1.jpg', cv2.IMREAD_COLOR)
+	base = cv2.imread(filename, cv2.IMREAD_COLOR)
 	for cluster in clusters:
 		cv2.circle(base, (int(cluster[1]), int(cluster[0])), int(math.log(cluster[2]) * 5), [0, 255, 0], thickness=-1)
 
-	cv2.imwrite(filename, base)
+	cv2.imwrite('foo.png', base)
