@@ -4,6 +4,8 @@ import glob
 
 import dlib
 from skimage import io
+from skimage import img_as_ubyte
+from skimage import color
 
 if len(sys.argv) < 2:
     print(
@@ -22,6 +24,8 @@ detector = dlib.simple_object_detector("detector.svm")
 
 print("Processing file: {}".format(f))
 img = io.imread(f)
+img = color.rgb2gray(img)
+img = img_as_ubyte(img)
 dets = detector(img)
 print("Number of detected: {}".format(len(dets)))
 for k, d in enumerate(dets):
