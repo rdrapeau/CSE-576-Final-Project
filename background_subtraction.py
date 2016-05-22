@@ -7,7 +7,8 @@ from scipy.interpolate import UnivariateSpline
 THRESHOLD = 45
 MIN_AREA = 100
 SCALE = 0.2
- 
+PADDING = 0.4
+
 def create_LUT_8UC1(x, y):
     spl = UnivariateSpline(x, y)
     return spl(xrange(256))
@@ -89,15 +90,38 @@ while(1):
     contours, hierarchy = cv2.findContours(frame_filtered,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
 
     frame = cv2.resize(frame, (0,0), fx=SCALE, fy=SCALE)
-    cv2.drawContours(frame, contours, -1, (0,0,255), 1)
+    # cv2.drawContours(frame, contours, -1, (0,0,255), 1)
 
     motion_found, biggest_area, best_contour = largestContour(contours)
     if motion_found:
         x, y, w, h = best_contour
-        frame_gray = cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY)
-        roi_gray = frame_gray[y:y+h, x:x+w]
-        cv2.imshow('frame',roi_gray)
-        cv2.rectangle(frame,(x,y),(x + w, y + h),(0,255,0),1)
+        paddingY = h * PADDING
+        paddingX = w * PADDING
+        x = int(x - paddingX / 2.0)
+        x = int(max(0, x))
+        y = int(y - paddingY / 2.0)
+        y = int(max(0, y))
+
+        height, width, depth = frame.shape
+        endX = int(x + w + paddingX)
+        endX = min(endX, width)
+        endY = int(y + h + paddingY)
+        endY = min(endY, height)
+
+        paddedWidth = endX - x
+        paddedHeight = endY - y
+        top, bottom, left, right = 0, 0, 0, 0
+        if paddedWidth > paddedHeight:
+            top = (paddedWidth - paddedHeight) / 2
+            bottom = top
+        else:
+            left = (paddedHeight - paddedWidth) / 2
+            right = left
+        roi = frame[y:endY, x:endX]
+
+        square_roi = cv2.copyMakeBorder(roi, top, bottom, left, right, cv2.BORDER_CONSTANT)
+        cv2.imshow('frame', square_roi)
+        # cv2.rectangle(frame,(x,y),(x + w, y + h),(0,255,0),1)
     # cv2.imshow('frame',frame)
 
     # cv2.imshow('contours',frame)
