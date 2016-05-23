@@ -10,6 +10,7 @@ require 'cunn'
 require 'cutorch'
 require 'cudnn'
 
+local cmd = torch.CmdLine()
 cmd:text()
 cmd:text('Pose extraction using stacked hourglass network.')
 cmd:text()
