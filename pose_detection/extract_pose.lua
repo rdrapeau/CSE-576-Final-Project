@@ -67,7 +67,7 @@ end
 local imagePaths = listDirectory(opt.inDir, '.jpg')
 local result = {}
 
-print('Estimating ' .. #imagePaths .. ' poses')
+-- print('Estimating ' .. #imagePaths .. ' poses')
 
 for id, filePath in ipairs(imagePaths) do
 	local img = loadImage(opt.inDir .. '/' .. filePath, opt.imgDim, opt.imgDim)
@@ -82,9 +82,6 @@ for id, filePath in ipairs(imagePaths) do
     for i=1,32 do
         table.insert(result[filePath], normalized[i])
     end
-
-	print('Done with ' .. filePath)
-    print(result[filePath])
 end
 
-print(result)
+print(cjson.encode(result))
