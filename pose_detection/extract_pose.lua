@@ -26,7 +26,7 @@ opt = cmd:parse(arg or {})
 model = torch.load(opt.model)
 
 cutorch.setDevice(opt.gpuSelect)
-net = net:cuda()
+model = model:cuda()
 
 function getPreds(hms)
     if hms:size():size() == 3 then hms = hms:view(1, hms:size(1), hms:size(2), hms:size(3)) end
