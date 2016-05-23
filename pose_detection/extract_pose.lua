@@ -1,5 +1,5 @@
 require 'paths'
-require 'cjson'
+cjson = require 'cjson'
 require 'torch'
 require 'nn'
 require 'nnx'
