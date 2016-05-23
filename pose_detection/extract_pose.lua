@@ -67,9 +67,11 @@ end
 local imagePaths = listDirectory(opt.inDir, '.jpg')
 local result = {}
 
+print('Estimating ' .. #imagePaths .. ' poses')
+
 for id, filePath in ipairs(imagePaths) do
 	local img = loadImage(opt.inDir .. '/' .. filePath, opt.imgDim, opt.imgDim)
-    local out = model:forward(inp:view(1, 3, opt.imgDim, opt.imgDim):cuda())
+    local out = model:forward(img:view(1, 3, opt.imgDim, opt.imgDim):cuda())
     cutorch.synchronize()
     local hm = out[2][1]:float()
     hm[hm:lt(0)] = 0
