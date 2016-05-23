@@ -66,7 +66,6 @@ end
 local imagePaths = listDirectory(opt.inDir, '.jpg')
 local result = {}
 
-local preds = {}
 for id, filePath in ipairs(imagePaths) do
 	local img = loadImage(opt.inDir .. '/' .. filePath, opt.imgDim, opt.imgDim)
     local out = model:forward(inp:view(1, 3, opt.imgDim, opt.imgDim):cuda())
@@ -75,10 +74,10 @@ for id, filePath in ipairs(imagePaths) do
     hm[hm:lt(0)] = 0
 
     local preds_hm = getPreds(hm)
-    preds[filePath] = torch.Tensor(16, 2)
-    preds[filePath]:copy(preds_hm)
+    result[filePath] = torch.Tensor(16, 2)
+    result[filePath]:copy(preds_hm)
 
 	print('Done with ' .. filePath)
 end
 
-print preds
+print(result)
