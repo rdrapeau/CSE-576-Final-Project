@@ -77,10 +77,11 @@ for id, filePath in ipairs(imagePaths) do
     hm[hm:lt(0)] = 0
 
     local preds_hm = getPreds(hm)
-    result[filePath] = torch.Tensor(16, 2)
-    result[filePath]:copy(preds_hm)
+    result[filePath] = torch.Tensor(32)
+    result[filePath]:copy(preds_hm:view(32))
 
 	print('Done with ' .. filePath)
+    print(result[filePath])
 end
 
 print(result)
