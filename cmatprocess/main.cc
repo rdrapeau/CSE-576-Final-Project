@@ -170,8 +170,10 @@ static int PATCH_SIZE = 17;
 static Mat backgroundCorrelation(Mat foreground) {
     Mat foregroundBlurred;
     GaussianBlur(foreground, foregroundBlurred, Size(5, 5), 0, 0);
+    Mat foregroundShifted;
+    pyrMeanShiftFiltering(foregroundBlurred, foregroundShifted, 10, 20, 3);
 
-    vector<Mat> fgPatches = extractPatches(foreground, PATCH_SIZE);
+    vector<Mat> fgPatches = extractPatches(foregroundShifted, PATCH_SIZE);
 
     Mat result(foreground.rows / PATCH_SIZE, foreground.cols / PATCH_SIZE, CV_32F, Scalar(0));
     int pixIndex = 0;
@@ -322,7 +324,9 @@ static vector<Mat> processInput(vector<string> inFiles, string functionName, int
     } else if (functionName == "background_corr") {
         Mat backgroundBlurred;
         GaussianBlur(fileFrames[0][0], backgroundBlurred, Size(5, 5), 0, 0);
-        bgPatches = extractPatches(backgroundBlurred, PATCH_SIZE);
+        Mat backgroundShifted;
+        pyrMeanShiftFiltering(backgroundBlurred, backgroundShifted, 10, 20, 3);
+        bgPatches = extractPatches(backgroundShifted, PATCH_SIZE);
         mapFrames(fileFrames, coreCount, &backgroundCorrelation);
     }
 
