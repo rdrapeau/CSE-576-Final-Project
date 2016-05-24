@@ -5,8 +5,49 @@ import numpy as np
 import json
 import cv2
 import cv2.cv as cv
+import math
+import numpy as np
+from scipy import interpolate
 
 SCALE = 0.2
+
+def load_and_smooth_pose(pose_file, k):
+	pose_data = open(pose_file).read()
+	poses = json.loads(pose_data)
+
+	num_photos = len(poses.keys())
+	bounds = num_photos / k
+	count = 1
+	result = []
+	while(count <= num_photos):
+		img_name = str(count) + '.jpg'
+		count = count + 1
+		if img_name not in poses: continue
+		summation = np.array(poses[img_name])
+		norm_const = 1
+		for j in range(k - 1):
+			if count > num_photos: break
+			img_name = str(count) + '.jpg'
+			count = count + 1
+			if img_name not in poses: continue
+			summation = summation + np.array(poses[img_name])
+			norm_const = norm_const + 1
+
+		summation = summation / norm_const
+		result.append(summation)
+
+	result = np.matrix(result)
+
+
+	interps = []
+	# Build 32 interpolators (lol)
+	for i in range(result.shape[1]):
+		# ew..
+		interps.append(interpolate.interp1d(np.arange(0, result.shape[0]), np.asarray(result[:, i].flatten())[0], kind='slinear'))
+
+	return interps
+
+
 
 def main(args):
 	cap = cv2.VideoCapture(args.inputVideo)
@@ -17,10 +58,10 @@ def main(args):
 	height = int(cap.get(cv.CV_CAP_PROP_FRAME_HEIGHT) * SCALE)
 	video = cv2.VideoWriter('video_viz.mp4',fourcc,30,(width,height))
 
+	k = 4
 	transform_data = open(args.transforms).read()
 	transforms = json.loads(transform_data)
-	pose_data = open(args.poses).read()
-	poses = json.loads(pose_data)
+	poses = load_and_smooth_pose(args.poses, k)
 
 	framecount = 0
 	while(1):
@@ -40,11 +81,11 @@ def main(args):
 		img_name = str(framecount) + '.jpg'
 		img = cv2.imread(args.framesDir.strip('/') + '/' + img_name)
 		transform = transforms[str(framecount)]
-		pose = poses[img_name]
+		pose = [f(framecount / 4.0) for f in poses]
 
 		xPos = transform['x'] - transform['left']
 		yPos = transform['y'] - transform['top']
-		
+
 		for i in range(0, len(pose), 2):
 			x = pose[i]
 			y = pose[i + 1]
