@@ -7,9 +7,11 @@ import cv2
 import cv2.cv as cv
 import math
 import numpy as np
+import heatmap
 from scipy import interpolate
 
 SCALE = 0.2
+HM_DECAY = 0.95
 
 def load_and_smooth_pose(pose_file, k):
 	pose_data = open(pose_file).read()
@@ -58,10 +60,12 @@ def main(args):
 	height = int(cap.get(cv.CV_CAP_PROP_FRAME_HEIGHT) * SCALE)
 	video = cv2.VideoWriter('video_viz.mp4',fourcc,30,(width,height))
 
-	k = 4
+	k = 10
 	transform_data = open(args.transforms).read()
 	transforms = json.loads(transform_data)
 	poses = load_and_smooth_pose(args.poses, k)
+	hm = None
+	hm_gaussian = heatmap.gaussian_template(15, 4)
 
 	framecount = 0
 	while(1):
@@ -77,20 +81,28 @@ def main(args):
 			continue
 
 		frame = cv2.resize(frame, (0,0), fx=SCALE, fy=SCALE)
+		if hm is None:
+			hm = heatmap.new_heatmap(frame.shape[0], frame.shape[1])
+
+		transform = transforms[str(framecount)]
+		xPos = transform['x'] - transform['left']
+		yPos = transform['y'] - transform['top']
 
 		img_name = str(framecount) + '.jpg'
 		img = cv2.imread(args.framesDir.strip('/') + '/' + img_name)
-		transform = transforms[str(framecount)]
-		pose = [f(framecount / 4.0) for f in poses]
+		pose = [f(framecount / 10.0) for f in poses]
+		for i in range(0, len(pose), 2):
+			pose[i] = int(pose[i] * transform['size'] * 4) + xPos
+			pose[i + 1] = int(pose[i + 1] * transform['size'] * 4) + yPos
 
-		xPos = transform['x'] - transform['left']
-		yPos = transform['y'] - transform['top']
+		heatmap.update_heatmap(hm, hm_gaussian, pose, HM_DECAY)
 
 		for i in range(0, len(pose), 2):
 			x = pose[i]
 			y = pose[i + 1]
-			cv2.circle(frame, (xPos + int(x * transform['size'] * 4), yPos + int(y * transform['size']) * 4), 2, (0,0,255))
+			cv2.putText(frame, str(i), (x, y), cv2.FONT_HERSHEY_SCRIPT_SIMPLEX, 0.5, (255,255,255))
 
+		cv2.imshow('hm', hm)
 		cv2.imshow('frame', frame)
 		video.write(frame)
 
