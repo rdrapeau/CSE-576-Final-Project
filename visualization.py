@@ -1,3 +1,4 @@
+#!/usr/bin/python
 import argparse
 import os
 import sys
@@ -8,8 +9,50 @@ import cv2.cv as cv
 import math
 import numpy as np
 from scipy import interpolate
+from scipy.spatial.distance import euclidean
+
 
 SCALE = 0.2
+MEAN_MAD_THRESHOLD = 2.10904
+
+# def bin_number_freedman_diaconis(data):
+#     std = np.std(data)
+#     bin_size = 2 * std * (len(data) ** (-1.0 / 3.0))
+#     number_of_bins = math.ceil((np.max(data) - np.min(data)) / bin_size)
+#     return bin_size, number_of_bins
+
+
+def median_absolute_deviation(poses, t):
+	img_names = ['%d.jpg' % i for i in xrange(1, len(poses) + 1) if '%d.jpg' % i in poses]
+	poses = {img : np.array(poses[img]) for img in poses}
+	window_start_indexes = [i for i in xrange(t + 1, len(img_names) - 1, 2 * t + 1)]
+	resulting_poses = [poses[img_names[0]]]
+	time_steps = [0]
+	for i in window_start_indexes:
+		img_name = img_names[i]
+		if i < t or i > len(img_names) - t - 1:
+			continue
+
+		img_names_window = img_names[i - t : i] + [img_name] + img_names[i + 1 : i + t + 1]
+		poses_window = [poses[img] for img in img_names_window]
+		current_pose = poses[img_name]
+
+		pose_distances = np.array([euclidean(current_pose, other_pose) for other_pose in poses_window])
+		median_distance = np.median(pose_distances)
+
+		deviations = [abs(median_distance - pose_distance) for pose_distance in pose_distances]
+		median_deviation = np.median(deviations)
+
+		pose_distances = np.abs(pose_distances - median_distance) / median_deviation
+		for j, distance in enumerate(pose_distances):
+			if distance < MEAN_MAD_THRESHOLD / 3:
+				time_steps.append(i - t + j)
+				resulting_poses.append(poses_window[j])
+
+	resulting_poses.append(poses[img_names[-1]])
+	time_steps.append(len(img_names) - 1)
+	return resulting_poses, np.array(time_steps)
+
 
 def load_and_smooth_pose(pose_file, k):
 	pose_data = open(pose_file).read()
@@ -18,32 +61,25 @@ def load_and_smooth_pose(pose_file, k):
 	num_photos = len(poses.keys())
 	bounds = num_photos / k
 	count = 1
-	result = []
-	while(count <= num_photos):
-		img_name = str(count) + '.jpg'
-		count = count + 1
-		if img_name not in poses: continue
-		summation = np.array(poses[img_name])
+	result, time_steps = median_absolute_deviation(poses, k)
+	smoothed_result = []
+	for i, pose in enumerate(result):
+		summation = pose
 		norm_const = 1
-		for j in range(k - 1):
+		for j in xrange(k - 1):
 			if count > num_photos: break
-			img_name = str(count) + '.jpg'
-			count = count + 1
-			if img_name not in poses: continue
-			summation = summation + np.array(poses[img_name])
-			norm_const = norm_const + 1
+			count += 1
+			summation += result[i + j]
+			norm_const += 1
 
-		summation = summation / norm_const
-		result.append(summation)
+		smoothed_result.append(summation / norm_const)
 
-	result = np.matrix(result)
-
-
+	smoothed_result = np.matrix(smoothed_result)
 	interps = []
 	# Build 32 interpolators (lol)
-	for i in range(result.shape[1]):
+	for i in range(smoothed_result.shape[1]):
 		# ew..
-		interps.append(interpolate.interp1d(np.arange(0, result.shape[0]), np.asarray(result[:, i].flatten())[0], kind='slinear'))
+		interps.append(interpolate.interp1d(time_steps, np.asarray(smoothed_result[:, i].flatten())[0], kind='slinear'))
 
 	return interps
 
@@ -81,7 +117,7 @@ def main(args):
 		img_name = str(framecount) + '.jpg'
 		img = cv2.imread(args.framesDir.strip('/') + '/' + img_name)
 		transform = transforms[str(framecount)]
-		pose = [f(framecount / 4.0) for f in poses]
+		pose = [f(framecount) for f in poses]
 
 		xPos = transform['x'] - transform['left']
 		yPos = transform['y'] - transform['top']
