@@ -2,15 +2,19 @@
 import argparse
 import os
 import sys
+sys.path.append('./handle_training')
 import numpy as np
 import json
 import cv2
 import cv2.cv as cv
 import math
-import numpy as np
 import heatmap
+import detect
 from scipy import interpolate
 from scipy.spatial.distance import euclidean
+from scipy.ndimage.filters import maximum_filter, minimum_filter
+from scipy.ndimage.morphology import generate_binary_structure, binary_erosion
+import matplotlib.pyplot as plt
 
 
 SCALE = 0.2
@@ -24,6 +28,54 @@ HM_DECAY = 0.90
 #     number_of_bins = math.ceil((np.max(data) - np.min(data)) / bin_size)
 #     return bin_size, number_of_bins
 
+
+########################################################################################
+### SVM stuff
+########################################################################################
+def get_handle_bounding_boxes(img):
+	cv2.imwrite('./temp.jpg', img)
+	return detect.handle_locations('./temp.jpg', './handle_training/full_detector.svm')
+
+def in_bounding_box(handles, location):
+	print str(location[0]) + " " + str(location[1])
+	for k, d in enumerate(handles):
+		if (location[0] >= d.left() and location[0] <= d.right() and location[1] <= d.bottom() and location[1] >= d.top()):
+			print("In Hold {}: Left: {} Top: {} Right: {} Bottom: {}".format(
+            	k, d.left(), d.top(), d.right(), d.bottom()))
+
+def draw_handle_bounding_boxes(handles, frame):
+	for k, d in enumerate(handles):
+		cv2.rectangle(frame, (d.left(), d.top()), (d.right(), d.bottom()), (0,0,255))
+########################################################################################
+
+
+########################################################################################
+### JSON stuff
+########################################################################################
+def load_hold_locations():
+	hold_data = open('hold_locations.json').read()
+	return json.loads(hold_data)
+
+def draw_holds(hold_data, frame):
+	for hold in hold_data:
+		cv2.circle(frame, (int(hold['coordinates']['x'] * frame.shape[1]), int(hold['coordinates']['y'] * frame.shape[0])), 10, (0,0,255))
+
+def closest_hold(hold_data, location, w, h):
+	min_dist = -1
+	best_hold = None
+	for hold in hold_data:
+		dist = euclidean((hold['coordinates']['x'] * w, hold['coordinates']['y'] * h), location)
+		if (dist < min_dist or min_dist == -1):
+			min_dist = dist
+			best_hold = hold
+	return min_dist, best_hold
+########################################################################################
+
+
+def draw_pose(pose, frame):
+	skeleton = [(0,2), (2,4), (4,12), (12,6), (6,8), (8,10), (20,22), (22,24), (18,16), (16,24), (16,26), (12,14), (26,28), (28,30), (14,16)]
+	for bone in skeleton:
+		cv2.line(frame, (pose[bone[0]], pose[bone[0] + 1]), (pose[bone[1]], pose[bone[1] + 1]), (255,0,0), 4)
 
 def median_absolute_deviation(poses, t):
 	img_names = ['%d.jpg' % i for i in xrange(1, len(poses) + 1) if '%d.jpg' % i in poses]
@@ -86,15 +138,13 @@ def load_and_smooth_pose(pose_file, k):
 
 	return interps
 
-
-
 def main(args):
 	cap = cv2.VideoCapture(args.inputVideo)
 
 	# video writer
 	fourcc = cv.CV_FOURCC('m', 'p', '4', 'v') # note the lower case
-	width = int(cap.get(cv.CV_CAP_PROP_FRAME_WIDTH) * SCALE)
-	height = int(cap.get(cv.CV_CAP_PROP_FRAME_HEIGHT) * SCALE)
+	width = int(cap.get(cv.CV_CAP_PROP_FRAME_WIDTH)) # * SCALE)
+	height = int(cap.get(cv.CV_CAP_PROP_FRAME_HEIGHT)) # * SCALE)
 	video = cv2.VideoWriter('video_viz.mp4',fourcc,30,(width,height))
 
 	k = 10
@@ -104,12 +154,18 @@ def main(args):
 	hm = None
 	hm_gaussian = heatmap.gaussian_template(15, 4)
 
+	
 	framecount = 0
-	while(1):
-		ret, frame = cap.read()
-		if frame is None:
-			break
+	ret, frame = cap.read()
+	# handles = get_handle_bounding_boxes(frame)
+	# for k, d in enumerate(handles):
+	# 	print("Detection {}: Left: {} Top: {} Right: {} Bottom: {}".format(
+ #        	k, d.left(), d.top(), d.right(), d.bottom()))
 
+	holds = load_hold_locations()
+	neighborhood = generate_binary_structure(2,2)
+
+	while(frame is not None):
 		framecount += 1
 		# if framecount % 10 == 0:
 		#     print framecount
@@ -117,7 +173,6 @@ def main(args):
 		if str(framecount) not in transforms:
 			continue
 
-		frame = cv2.resize(frame, (0,0), fx=SCALE, fy=SCALE)
 		if hm is None:
 			hm = heatmap.new_heatmap(frame.shape[0], frame.shape[1])
 
@@ -135,10 +190,36 @@ def main(args):
 
 		heatmap.update_heatmap(hm, hm_gaussian, pose, HM_DECAY)
 
+		##################################################
+		### Heatmap visualization
+		##################################################
+		# threshold = 0.05
+		# data_max = maximum_filter(hm, 5)
+		# maxima = (hm == data_max)
+		# data_min = minimum_filter(hm, 5)
+		# diff = ((data_max - data_min) > threshold)
+		# maxima[diff == 0] = 0
+		# for i in range(maxima.shape[0]):
+		# 	for j in range(maxima.shape[1]):
+		# 		if (maxima[i][j]):
+		# 			print "i " + str(i) + " j " + str(j) + " val " + str(maxima[i][j])
+		# 			cv2.circle(frame, (j, i), 4, (0,255,0), -1)
+		##################################################
+
+		
+		draw_pose(pose, frame)
+		draw_holds(holds, frame)
+
+		limbs = [30, 20, 10, 0]
+		for limb in limbs:
+			dist, hold = closest_hold(holds, (pose[limb], pose[limb + 1]), frame.shape[1], frame.shape[0])
+			if (dist < 50):
+				cv2.circle(frame, (int(hold['coordinates']['x'] * frame.shape[1]), int(hold['coordinates']['y'] * frame.shape[0])), 10, (0,255,0), -1)
+
 		for i in range(0, len(pose), 2):
 			x = pose[i]
 			y = pose[i + 1]
-			cv2.putText(frame, str(i), (x, y), cv2.FONT_HERSHEY_SCRIPT_SIMPLEX, 0.5, (255,255,255))
+			# cv2.putText(frame, str(i), (x, y), cv2.FONT_HERSHEY_SCRIPT_SIMPLEX, 0.5, (255,255,255))
 
 		cv2.imshow('hm', hm)
 		cv2.imshow('frame', frame)
@@ -147,10 +228,12 @@ def main(args):
 		k = cv2.waitKey(30) & 0xff
 		if k == 27:
 			break
+		ret, frame = cap.read()
 
 	cap.release()
 	video.release()
 	cv2.destroyAllWindows()
+
 
 
 if __name__ == "__main__":

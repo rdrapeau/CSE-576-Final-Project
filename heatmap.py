@@ -7,7 +7,7 @@ def gaussian_template(kernlen, nsig):
     x = np.linspace(-nsig - interval / 2.0, nsig + interval / 2.0, kernlen + 1)
     kern1d = np.diff(st.norm.cdf(x))
     kernel_raw = np.sqrt(np.outer(kern1d, kern1d))
-    kernel = kernel_raw / kernel_raw.sum()
+    kernel = 2 * (kernel_raw / kernel_raw.sum())
     return kernel
 
 def new_heatmap(w, h):

@@ -105,7 +105,8 @@ def getPaddedSquareImage(best_contour, frame):
     roi = frame[y:endY, x:endX]
 
     square_roi = cv2.copyMakeBorder(roi, top, bottom, left, right, cv2.BORDER_CONSTANT)
-    return square_roi, {'x': x, 'y': y, 'top': top, 'left': left, 'size': size}
+    unscale = 1.0 / SCALE
+    return square_roi, {'x': x * unscale, 'y': y * unscale, 'top': top * unscale, 'left': left * unscale, 'size': size * unscale}
 
 def main(args):
     createDirectory(args.outputDir)
@@ -136,17 +137,17 @@ def main(args):
         # cv2.imshow('frame',fgmask)
 
         frame_filtered = cv2.dilate(frame_filtered, None, iterations=2)
-        # cv2.imshow('frame',frame_filtered)
+        
 
         contours, hierarchy = cv2.findContours(frame_filtered,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
 
         frame = cv2.resize(frame, (0,0), fx=SCALE, fy=SCALE)
-        # cv2.drawContours(frame, contours, -1, (0,0,255), 1)
-
+        cv2.drawContours(frame, contours, -1, (0,0,255), 1)
+        cv2.imshow('frame',frame)
         motion_found, biggest_area, best_contour = largestContour(contours)
         if motion_found:
             square_roi, transform = getPaddedSquareImage(best_contour, frame)
-            cv2.imshow('frame', square_roi)
+            # cv2.imshow('frame', square_roi)
             cv2.imwrite(args.outputDir.strip('/') + '/' + str(framecount) + '.jpg', square_roi)
             data[framecount] = transform
 
