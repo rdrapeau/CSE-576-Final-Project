@@ -15,7 +15,7 @@ from scipy.spatial.distance import euclidean
 from scipy.ndimage.filters import maximum_filter, minimum_filter
 from scipy.ndimage.morphology import generate_binary_structure, binary_erosion
 import matplotlib.pyplot as plt
-
+from operator import itemgetter
 
 SCALE = 0.2
 MEAN_MAD_THRESHOLD = 2.10904
@@ -193,28 +193,34 @@ def main(args):
 		##################################################
 		### Heatmap visualization
 		##################################################
-		# threshold = 0.05
-		# data_max = maximum_filter(hm, 5)
-		# maxima = (hm == data_max)
-		# data_min = minimum_filter(hm, 5)
-		# diff = ((data_max - data_min) > threshold)
-		# maxima[diff == 0] = 0
-		# for i in range(maxima.shape[0]):
-		# 	for j in range(maxima.shape[1]):
-		# 		if (maxima[i][j]):
-		# 			print "i " + str(i) + " j " + str(j) + " val " + str(maxima[i][j])
-		# 			cv2.circle(frame, (j, i), 4, (0,255,0), -1)
+		data_max = maximum_filter(hm, 5)
+		maxima = (hm == data_max)
+		data_min = minimum_filter(hm, 5)
+		diff = (data_max - data_min)
+		maxima[diff == 0] = 0
+		maximas = []
+		for i in range(maxima.shape[0]):
+			for j in range(maxima.shape[1]):
+				if (maxima[i][j]):
+					maximas.append(((i, j), diff[i][j]))
+		maximas = sorted(maximas, key=itemgetter(1), reverse=True)
+		maximas = maximas[:4]
+		for maxima in maximas:
+			cv2.circle(frame, (maxima[0][1], maxima[0][0]), 4, (255,255,0), -1)
+			dist, hold = closest_hold(holds, (maxima[0][1], maxima[0][0]), frame.shape[1], frame.shape[0])
+			if (dist < 50):
+				cv2.circle(frame, (int(hold['coordinates']['x'] * frame.shape[1]), int(hold['coordinates']['y'] * frame.shape[0])), 10, (0,255,0), -1)
 		##################################################
 
 		
 		draw_pose(pose, frame)
 		draw_holds(holds, frame)
 
-		limbs = [30, 20, 10, 0]
-		for limb in limbs:
-			dist, hold = closest_hold(holds, (pose[limb], pose[limb + 1]), frame.shape[1], frame.shape[0])
-			if (dist < 50):
-				cv2.circle(frame, (int(hold['coordinates']['x'] * frame.shape[1]), int(hold['coordinates']['y'] * frame.shape[0])), 10, (0,255,0), -1)
+		# limbs = [30, 20, 10, 0]
+		# for limb in limbs:
+		# 	dist, hold = closest_hold(holds, (pose[limb], pose[limb + 1]), frame.shape[1], frame.shape[0])
+		# 	if (dist < 50):
+		# 		cv2.circle(frame, (int(hold['coordinates']['x'] * frame.shape[1]), int(hold['coordinates']['y'] * frame.shape[0])), 10, (0,255,0), -1)
 
 		for i in range(0, len(pose), 2):
 			x = pose[i]
