@@ -7,14 +7,14 @@ def gaussian_template(kernlen, nsig):
     x = np.linspace(-nsig - interval / 2.0, nsig + interval / 2.0, kernlen + 1)
     kern1d = np.diff(st.norm.cdf(x))
     kernel_raw = np.sqrt(np.outer(kern1d, kern1d))
-    kernel = 2 * (kernel_raw / kernel_raw.sum())
+    kernel = 10 * (kernel_raw / kernel_raw.sum())
     return kernel
 
 def new_heatmap(w, h):
 	return np.zeros((w, h))
 
 def add_at_offset(b1, b2, pos_h, pos_v):
-	# if pos_h + b2.shape[0] >= pos_b1.shape[0] or pos_v + b2.shape[1] >= pos_b1.shape[1]: return
+	# if pos_h + b2.shape[0] >= b1.shape[0] or pos_v + b2.shape[1] >= b1.shape[1]: return
 	# if pos_h < 0 or pos_v < 0: return
 
 	v_range1 = slice(max(0, pos_v), max(min(pos_v + b2.shape[0], b1.shape[0]), 0))

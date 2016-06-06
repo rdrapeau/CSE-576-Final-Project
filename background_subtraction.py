@@ -47,10 +47,10 @@ def colder(frame):
 
 def filterImage(frame, base_frame):
     # resize
-    try:
-        frame = cv2.resize(frame, (0,0), fx=SCALE, fy=SCALE)
-    except:
-        print "frame shape " + frame.shape
+    # try:
+    #     frame = cv2.resize(frame, (0,0), fx=SCALE, fy=SCALE)
+    # except:
+    #     print "frame shape " + frame.shape
 
     # colder
     frame = colder(frame)
@@ -76,8 +76,10 @@ def createDirectory(dir_path):
         shutil.rmtree(dir_path)
     os.makedirs(dir_path)
 
-def getPaddedSquareImage(best_contour, frame):
+def getPaddedSquareImage(best_contour, frame, video):
     x, y, w, h = best_contour
+    cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0))
+    
     paddingY = h * PADDING
     paddingX = w * PADDING
     x = int(x - paddingX / 2.0)
@@ -85,11 +87,18 @@ def getPaddedSquareImage(best_contour, frame):
     y = int(y - paddingY / 2.0)
     y = int(max(0, y))
 
+
+
+
     height, width, depth = frame.shape
     endX = int(x + w + paddingX)
     endX = min(endX, width)
     endY = int(y + h + paddingY)
     endY = min(endY, height)
+
+    cv2.rectangle(frame, (x, y), (endX, endY), (0, 255, 0))
+    cv2.imshow('frame',frame)
+    video.write(frame)
 
     paddedWidth = endX - x
     paddedHeight = endY - y
@@ -103,6 +112,7 @@ def getPaddedSquareImage(best_contour, frame):
         right = left
         size = paddedHeight
     roi = frame[y:endY, x:endX]
+    
 
     square_roi = cv2.copyMakeBorder(roi, top, bottom, left, right, cv2.BORDER_CONSTANT)
     unscale = 1.0 / SCALE
@@ -112,11 +122,18 @@ def main(args):
     createDirectory(args.outputDir)
     cap = cv2.VideoCapture(args.inputVideo) #./Media/vid/ryan_no_rope.MP4
 
+
+    # video writer
+    fourcc = cv.CV_FOURCC('m', 'p', '4', 'v') # note the lower case
+    width = int(cap.get(cv.CV_CAP_PROP_FRAME_WIDTH)) # * SCALE)
+    height = int(cap.get(cv.CV_CAP_PROP_FRAME_HEIGHT)) # * SCALE)
+    video = cv2.VideoWriter('largest_contour_viz.mp4',fourcc,30,(width,height))
+
     # fgbg = cv2.BackgroundSubtractorMOG()
 
     # first frame is the base for background subtraction
     ret, base_frame = cap.read()
-    base_frame = cv2.resize(base_frame, (0,0), fx=SCALE, fy=SCALE)
+    # base_frame = cv2.resize(base_frame, (0,0), fx=SCALE, fy=SCALE)
     base_frame = cv2.GaussianBlur( base_frame, ( 3, 3 ), 0)
 
     framecount = 1
@@ -131,22 +148,25 @@ def main(args):
             print framecount
         
         frame_filtered = filterImage(frame, base_frame)
-        # cv2.imshow('frame', frame_filtered)
+        
 
         # fgmask = fgbg.apply(frame_filtered)
         # cv2.imshow('frame',fgmask)
 
         frame_filtered = cv2.dilate(frame_filtered, None, iterations=2)
         
+        # frame_show = cv2.cvtColor(frame_filtered,cv2.COLOR_GRAY2RGB)
+        # video.write(frame_show)
+        # cv2.imshow('frame', frame_show)
 
         contours, hierarchy = cv2.findContours(frame_filtered,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
 
-        frame = cv2.resize(frame, (0,0), fx=SCALE, fy=SCALE)
+        # frame = cv2.resize(frame, (0,0), fx=SCALE, fy=SCALE)
         cv2.drawContours(frame, contours, -1, (0,0,255), 1)
-        cv2.imshow('frame',frame)
+        
         motion_found, biggest_area, best_contour = largestContour(contours)
         if motion_found:
-            square_roi, transform = getPaddedSquareImage(best_contour, frame)
+            square_roi, transform = getPaddedSquareImage(best_contour, frame, video)
             # cv2.imshow('frame', square_roi)
             cv2.imwrite(args.outputDir.strip('/') + '/' + str(framecount) + '.jpg', square_roi)
             data[framecount] = transform

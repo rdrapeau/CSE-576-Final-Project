@@ -58,7 +58,7 @@ def load_hold_locations():
 
 def draw_holds(hold_data, frame):
 	for hold in hold_data:
-		cv2.circle(frame, (int(hold['coordinates']['x'] * frame.shape[1]), int(hold['coordinates']['y'] * frame.shape[0])), 10, (0,0,255))
+		cv2.circle(frame, (int(hold['coordinates']['x'] * frame.shape[1]), int(hold['coordinates']['y'] * frame.shape[0])), 10, (0,0,255), 2)
 
 def closest_hold(hold_data, location, w, h):
 	min_dist = -1
@@ -145,7 +145,7 @@ def main(args):
 	fourcc = cv.CV_FOURCC('m', 'p', '4', 'v') # note the lower case
 	width = int(cap.get(cv.CV_CAP_PROP_FRAME_WIDTH)) # * SCALE)
 	height = int(cap.get(cv.CV_CAP_PROP_FRAME_HEIGHT)) # * SCALE)
-	video = cv2.VideoWriter('video_viz.mp4',fourcc,30,(width,height))
+	video = cv2.VideoWriter('holds_viz.mp4',fourcc,30,(width,height))
 
 	k = 10
 	transform_data = open(args.transforms).read()
@@ -191,43 +191,57 @@ def main(args):
 		heatmap.update_heatmap(hm, hm_gaussian, pose, HM_DECAY)
 
 		##################################################
-		### Heatmap visualization
+		### Heatmap + hold visualization
 		##################################################
-		data_max = maximum_filter(hm, 5)
-		maxima = (hm == data_max)
-		data_min = minimum_filter(hm, 5)
-		diff = (data_max - data_min)
-		maxima[diff == 0] = 0
-		maximas = []
-		for i in range(maxima.shape[0]):
-			for j in range(maxima.shape[1]):
-				if (maxima[i][j]):
-					maximas.append(((i, j), diff[i][j]))
-		maximas = sorted(maximas, key=itemgetter(1), reverse=True)
-		maximas = maximas[:4]
-		for maxima in maximas:
-			cv2.circle(frame, (maxima[0][1], maxima[0][0]), 4, (255,255,0), -1)
-			dist, hold = closest_hold(holds, (maxima[0][1], maxima[0][0]), frame.shape[1], frame.shape[0])
-			if (dist < 50):
-				cv2.circle(frame, (int(hold['coordinates']['x'] * frame.shape[1]), int(hold['coordinates']['y'] * frame.shape[0])), 10, (0,255,0), -1)
+		# data_max = maximum_filter(hm, 5)
+		# maxima = (hm == data_max)
+		# data_min = minimum_filter(hm, 5)
+		# diff = (data_max - data_min)
+		# maxima[diff == 0] = 0
+		# maximas = []
+		# for i in range(maxima.shape[0]):
+		# 	for j in range(maxima.shape[1]):
+		# 		if (maxima[i][j]):
+		# 			maximas.append(((i, j), diff[i][j]))
+		# maximas = sorted(maximas, key=itemgetter(1), reverse=True)
+		# maximas = maximas[:4]
+		# for maxima in maximas:
+		# 	# cv2.circle(frame, (maxima[0][1], maxima[0][0]), 4, (255,255,0), -1)
+		# 	dist, hold = closest_hold(holds, (maxima[0][1], maxima[0][0]), frame.shape[1], frame.shape[0])
+		# 	if (dist < 50):
+		# 		cv2.circle(frame, (int(hold['coordinates']['x'] * frame.shape[1]), int(hold['coordinates']['y'] * frame.shape[0])), 10, (0,255,0), -1)
 		##################################################
-
 		
-		draw_pose(pose, frame)
+		# draw_pose(pose, frame)
 		draw_holds(holds, frame)
 
+		##################################################
+		### Pose + hold visualization
+		##################################################
 		# limbs = [30, 20, 10, 0]
 		# for limb in limbs:
 		# 	dist, hold = closest_hold(holds, (pose[limb], pose[limb + 1]), frame.shape[1], frame.shape[0])
 		# 	if (dist < 50):
 		# 		cv2.circle(frame, (int(hold['coordinates']['x'] * frame.shape[1]), int(hold['coordinates']['y'] * frame.shape[0])), 10, (0,255,0), -1)
+		##################################################
 
-		for i in range(0, len(pose), 2):
-			x = pose[i]
-			y = pose[i + 1]
-			# cv2.putText(frame, str(i), (x, y), cv2.FONT_HERSHEY_SCRIPT_SIMPLEX, 0.5, (255,255,255))
 
-		cv2.imshow('hm', hm)
+		##################################################
+		### Label skeleton visualization
+		##################################################
+		# for i in range(0, len(pose), 2):
+		# 	x = pose[i]
+		# 	y = pose[i + 1]
+		# 	cv2.putText(frame, str(i), (x, y), cv2.FONT_HERSHEY_SCRIPT_SIMPLEX, 0.5, (255,255,255))
+		##################################################
+
+		### Raw Heatmap
+		# hm_frame = np.clip(hm * 255.0, 0, 255.0).astype('u1')
+		# hm_frame = cv2.merge([hm_frame,hm_frame,hm_frame])
+		# cv2.imshow('hm', hm_frame)
+		# video.write(hm_frame)
+		############################
+
 		cv2.imshow('frame', frame)
 		video.write(frame)
 
